@@ -22,7 +22,7 @@ pub use tauri_utils::{
 #[cfg(feature = "tauri")]
 mod extension;
 #[cfg(feature = "tauri")]
-pub use extension::{clear_effects, init, popup_context_menu, set_effects, Window};
+pub use extension::{clear_effects, init, popup_context_menu, set_effects, set_input_shape, set_fullscreenable, Window};
 #[cfg(feature = "tauri")]
 pub use tauri::window::EffectsBuilder;
 use tauri_runtime::{
@@ -46,6 +46,18 @@ pub(crate) struct EffectsTarget {
 }
 
 impl EffectsTarget {
+  fn set_fullscreenable(&self, fullscreenable: bool) -> std::io::Result<()> {
+    self.ipc.upgrade()
+      .ok_or_else(|| std::io::Error::other("Electron runtime has exited"))?
+      .call(electron_rs::rpc::window::SetFullscreenable { window_id: self.serial, fullscreenable })
+      .map_err(|error| std::io::Error::other(error.to_string()))
+  }
+  fn set_input_shape(&self, rectangles: Vec<electron_rs::rpc::Rectangle>) -> std::io::Result<()> {
+    self.ipc.upgrade()
+      .ok_or_else(|| std::io::Error::other("Electron runtime has exited"))?
+      .call(electron_rs::rpc::window::SetInputShape { window_id: self.serial, rectangles })
+      .map_err(|error| std::io::Error::other(error.to_string()))
+  }
   pub(crate) fn new(serial: u32, ipc: &std::sync::Arc<ElectronProcess>) -> Self {
     Self {
       serial,

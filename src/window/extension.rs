@@ -43,6 +43,52 @@ impl Window {
   }
 }
 
+pub fn set_input_shape(
+    window: &tauri::Window<ElectronRuntime>,
+    rectangles: Vec<electron_rs::rpc::Rectangle>,
+) -> tauri::Result<()> {
+    let (tx, rx) = sync_channel(1);
+    window.run_on_main_thread(move || {
+        let target = EFFECTS_TARGET.with(|slot| slot.borrow().clone());
+        let result = target
+            .ok_or_else(|| std::io::Error::other("Electron window route is unavailable"))
+            .and_then(|target| target.set_input_shape(rectangles));
+        let _ = tx.send(result);
+    })?;
+    rx.recv_timeout(IPC_TIMEOUT)
+        .map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "Electron input shape timed out",
+            )
+        })?
+        .map_err(Into::into)
+}
+
+pub fn set_fullscreenable(
+    window: &tauri::Window<ElectronRuntime>,
+    value: bool,
+) -> tauri::Result<()> {
+    let (tx, rx) = sync_channel(1);
+    window.run_on_main_thread(move || {
+        let target = EFFECTS_TARGET.with(|slot| slot.borrow().clone());
+        let result = target
+            .ok_or_else(|| std::io::Error::other("Electron window route is unavailable"))
+            .and_then(|target| target.set_fullscreenable(value));
+        let _ = tx.send(result);
+    })?;
+    rx.recv_timeout(IPC_TIMEOUT)
+        .map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "Electron window configuration timed out",
+            )
+        })?
+        .map_err(Into::into)
+}
+
+
+
 /// Applies effects to an existing official Tauri window on this runtime.
 /// The scheduled task is scoped to that window and Electron connection.
 pub fn set_effects<E: Into<Option<WindowEffectsConfig>>>(
